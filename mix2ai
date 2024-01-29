@@ -1,0 +1,131 @@
+#include <iostream>
+#include <vector>
+#include <string>
+
+#include "virtualdj/core.h"
+#include "virtualdj/audio.h"
+
+using namespace std;
+
+class MyMixer : public virtualdj::MixerWithControls, public virtualdj::VSTHost
+{
+public:
+  MyMixer()
+  {
+    // Initialise les pistes audio
+    for (int i = 0; i < 4; i++)
+    {
+      m_tracks[i] = new virtualdj::Track();
+    }
+
+    // Initialise l'interface graphique
+    m_gui = new MyGUI(this);
+  }
+
+  virtual ~MyMixer()
+  {
+    // Supprime les pistes audio
+    for (int i = 0; i < 4; i++)
+    {
+      delete m_tracks[i];
+    }
+
+    // Supprime l'interface graphique
+    delete m_gui;
+  }
+
+  virtual virtualdj::Track* getTrack(int index) override
+  {
+    return m_tracks[index];
+  }
+
+  virtual void loadFile(int index, const string& filename) override
+  {
+    // Charge le fichier audio
+    virtualdj::AudioFile* audioFile = virtualdj::AudioFile::load(filename);
+
+    // Crée la piste audio
+    virtualdj::Track* track = new virtualdj::Track();
+    track->setAudioFile(audioFile);
+
+    // Ajoute la piste à la liste des pistes
+    m_tracks[index] = track;
+
+    // Met à jour l'interface graphique
+    m_gui->updateTrack(index);
+  }
+
+  virtual void startPlayback(int index) override
+  {
+    // Lance la lecture de la piste
+    m_tracks[index]->startPlayback();
+
+    // Met à jour l'interface graphique
+    m_gui->updatePlaybackButton(index);
+  }
+
+  virtual void stopPlayback(int index) override
+  {
+    // Arrête la lecture de la piste
+    m_tracks[index]->stopPlayback();
+
+    // Met à jour l'interface graphique
+    m_gui->updatePlaybackButton(index);
+  }
+
+  virtual float getVolume(int index) override
+  {
+    // Retourne le volume de la piste
+    return m_tracks[index]->getVolume();
+  }
+
+  virtual void setVolume(int index, float volume) override
+  {
+    // Modifie le volume de la piste
+    m_tracks[index]->setVolume(volume);
+
+    // Met à jour l'interface graphique
+    m_gui->updateVolumeSlider(index);
+  }
+
+  virtual float getSpeed(int index) override
+  {
+    // Retourne la vitesse de la piste
+    return m_tracks[index]->getSpeed();
+  }
+
+  virtual void setSpeed(int index, float speed) override
+  {
+    // Modifie la vitesse de la piste
+    m_tracks[index]->setSpeed(speed);
+
+    // Met à jour l'interface graphique
+    m_gui->updateSpeedSlider(index);
+  }
+
+  virtual virtualdj::VST* loadVST(const string& filename) override
+  {
+    // Charge le VST
+    virtualdj::VST* vst = virtualdj::VST::load(filename);
+
+    // Ajoute le VST aux VSTs chargés
+    m_vsts.push_back(vst);
+
+    // Met à jour l'interface graphique
+    m_gui->updateVSTList();
+
+    return vst;
+  }
+
+  virtual void unloadVST(virtualdj::VST* vst) override
+  {
+    // Supprime le VST des VSTs chargés
+    m_vsts.erase(std::find(m_vsts.begin(), m_vsts.end(), vst));
+
+    // Met à jour l'interface graphique
+    m_gui->updateVSTList();
+  }
+
+private:
+  virtualdj::Track* m_tracks[4];
+  vector<virtualdj::VST*> m_vsts
